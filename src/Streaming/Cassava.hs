@@ -1,4 +1,5 @@
-{-# LANGUAGE FlexibleContexts, MultiParamTypeClasses, OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts, MultiParamTypeClasses, OverloadedStrings,
+             ScopedTypeVariables #-}
 
 {- |
    Module      : Streaming.Cassava
@@ -25,12 +26,14 @@ module Streaming.Cassava
   , encodeWith
     -- ** Named encoding
   , encodeByName
+  , encodeByNameDefault
   , encodeByNameWith
     -- * Re-exports
   , FromRecord (..)
   , FromNamedRecord (..)
   , ToRecord (..)
   , ToNamedRecord (..)
+  , DefaultOrdered (..)
   , HasHeader (..)
   , Header
   , Name
@@ -45,9 +48,10 @@ import qualified Data.ByteString.Streaming.Internal as B
 import           Streaming
 import qualified Streaming.Prelude                  as S
 
-import           Data.Csv             (DecodeOptions, EncodeOptions,
-                                       FromNamedRecord, FromRecord, Header,
-                                       Name, ToNamedRecord, ToRecord,
+import           Data.Csv             (DecodeOptions, DefaultOrdered(..),
+                                       EncodeOptions, FromNamedRecord(..),
+                                       FromRecord(..), Header, Name,
+                                       ToNamedRecord(..), ToRecord(..),
                                        defaultDecodeOptions,
                                        defaultEncodeOptions, encIncludeHeader,
                                        header)
@@ -198,6 +202,11 @@ encodeWith opts mhdr = B.fromChunks
     enc = DBL.toChunks . CI.encodeWith opts . CI.encodeRecord
 
 --------------------------------------------------------------------------------
+
+-- | Use the default ordering to encode all fields\/columns.
+encodeByNameDefault :: forall a m r. (DefaultOrdered a, ToNamedRecord a, Monad m)
+                       => Stream (Of a) m r -> ByteString m r
+encodeByNameDefault = encodeByName (headerOrder (undefined :: a))
 
 -- | Select the columns that you wish to encode from your data
 --   structure using default options (which currently includes
