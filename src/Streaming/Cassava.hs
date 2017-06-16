@@ -11,7 +11,16 @@
 
 
  -}
-module Streaming.Cassava where
+module Streaming.Cassava
+  ( -- * Decoding
+    decode
+  , decodeWith
+  , decodeWithErrors
+  , CsvParseException (..)
+    -- * Encoding
+  , encode
+  , encodeWith
+  ) where
 
 import qualified Data.ByteString                    as DB
 import qualified Data.ByteString.Lazy               as DBL
