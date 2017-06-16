@@ -17,9 +17,15 @@ module Streaming.Cassava
   , decodeWith
   , decodeWithErrors
   , CsvParseException (..)
+    -- ** Named decoding
+  , decodeByName
+  , decodeByNameWith
+  , decodeByNameWithErrors
     -- * Encoding
   , encode
   , encodeWith
+    -- * Re-exports
+  , HasHeader (..)
   ) where
 
 import qualified Data.ByteString                    as DB
@@ -30,16 +36,19 @@ import qualified Data.ByteString.Streaming.Internal as B
 import           Streaming
 import qualified Streaming.Prelude                  as S
 
-import           Data.Csv             (DecodeOptions, EncodeOptions, FromRecord,
-                                       ToRecord, defaultDecodeOptions,
+import           Data.Csv             (DecodeOptions, EncodeOptions,
+                                       FromNamedRecord, FromRecord, ToRecord,
+                                       defaultDecodeOptions,
                                        defaultEncodeOptions)
-import           Data.Csv.Incremental (HasHeader(..), Parser(..))
+import           Data.Csv.Incremental (HasHeader(..), HeaderParser(..),
+                                       Parser(..))
 import qualified Data.Csv.Incremental as CI
 
 import Control.Exception         (Exception(..))
 import Control.Monad.Error.Class (MonadError, throwError)
 import Control.Monad.Trans.Class (lift)
 import Data.Bifunctor            (first)
+import Data.Maybe                (fromMaybe)
 import Data.String               (IsString(..))
 import Data.Typeable             (Typeable)
 
@@ -71,9 +80,13 @@ decodeWith opts hdr bs = getValues (decodeWithErrors opts hdr bs)
 decodeWithErrors :: (Monad m, FromRecord a) => DecodeOptions -> HasHeader
                     -> ByteString m r
                     -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
-decodeWithErrors opts = loop . CI.decodeWith opts
+decodeWithErrors opts = runParser . CI.decodeWith opts
+
+runParser :: (Monad m) => Parser a -> ByteString m r
+             -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
+runParser = loop
   where
-    feed f str = (uncurry loop . maybe (f mempty, str) (first f))
+    feed f str = (uncurry (loop . f) . fromMaybe (mempty, str))
                           -- nxt == Nothing, str is just Return
                  =<< lift (B.unconsChunk str)
 
@@ -102,6 +115,51 @@ instance IsString CsvParseException where
 
 instance Exception CsvParseException where
   displayException (CsvParseException e) = "Error parsing csv: " ++ e
+
+--------------------------------------------------------------------------------
+
+-- | Use 'defaultOptions' for decoding the provided CSV.
+decodeByName :: (MonadError CsvParseException m, FromNamedRecord a)
+                => ByteString m r -> Stream (Of a) m r
+decodeByName = decodeByNameWith defaultDecodeOptions
+
+-- | Return back a stream of values from the provided CSV, stopping at
+--   the first error.
+--
+--   A header is required to determine the order of columns, but then
+--   discarded.
+--
+--   If you wish to instead ignore errors, consider using
+--   'decodeByNameWithErrors' with either 'S.mapMaybe' or @'S.effects'
+--   . 'S.partitionEithers'@.
+--
+--   Unlike 'decodeByNameWithErrors', any remaining input is
+--   discarded.
+decodeByNameWith :: (MonadError CsvParseException m, FromNamedRecord a)
+                    => DecodeOptions
+                    -> ByteString m r -> Stream (Of a) m r
+decodeByNameWith opts bs = getValues (decodeByNameWithErrors opts bs)
+                           >>= either (throwError . fst) return
+
+-- | Return back a stream with an attempt at type conversion, but
+--   where the order of columns doesn't have to match the order of
+--   fields of your actual type.
+--
+--   This requires\/assumes a header in the CSV stream, which is
+--   discarded after parsing.
+decodeByNameWithErrors :: (Monad m, FromNamedRecord a) => DecodeOptions
+                          -> ByteString m r
+                          -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
+decodeByNameWithErrors = loopH . CI.decodeByNameWith
+  where
+    loopH ph str = case ph of
+                     FailH bs err -> return (Left (CsvParseException err, B.consChunk bs str))
+                     PartialH get -> feedH get str
+                     DoneH _  p   -> runParser p str
+
+    feedH f str = (uncurry (loopH . f) . fromMaybe (mempty, str))
+                           -- nxt == Nothing, str is just Return
+                  =<< lift (B.unconsChunk str)
 
 --------------------------------------------------------------------------------
 
