@@ -1,5 +1,4 @@
-{-# LANGUAGE DeriveFunctor, FlexibleContexts, MultiParamTypeClasses,
-             OverloadedStrings #-}
+{-# LANGUAGE FlexibleContexts, MultiParamTypeClasses, OverloadedStrings #-}
 
 {- |
    Module      : Streaming.Cassava
@@ -24,8 +23,18 @@ module Streaming.Cassava
     -- * Encoding
   , encode
   , encodeWith
+    -- ** Named encoding
+  , encodeByName
+  , encodeByNameWith
     -- * Re-exports
+  , FromRecord (..)
+  , FromNamedRecord (..)
+  , ToRecord (..)
+  , ToNamedRecord (..)
   , HasHeader (..)
+  , Header
+  , Name
+  , header
   ) where
 
 import qualified Data.ByteString                    as DB
@@ -37,9 +46,12 @@ import           Streaming
 import qualified Streaming.Prelude                  as S
 
 import           Data.Csv             (DecodeOptions, EncodeOptions,
-                                       FromNamedRecord, FromRecord, ToRecord,
+                                       FromNamedRecord, FromRecord, Header,
+                                       Name, ToNamedRecord, ToRecord,
                                        defaultDecodeOptions,
-                                       defaultEncodeOptions)
+                                       defaultEncodeOptions, encIncludeHeader,
+                                       header)
+import qualified Data.Csv             as C
 import           Data.Csv.Incremental (HasHeader(..), HeaderParser(..),
                                        Parser(..))
 import qualified Data.Csv.Incremental as CI
@@ -184,3 +196,32 @@ encodeWith opts mhdr = B.fromChunks
 
     enc :: (ToRecord v) => v -> [DB.ByteString]
     enc = DBL.toChunks . CI.encodeWith opts . CI.encodeRecord
+
+--------------------------------------------------------------------------------
+
+-- | Select the columns that you wish to encode from your data
+--   structure using default options (which currently includes
+--   printing the header).
+encodeByName :: (ToNamedRecord a, Monad m) => Header
+                -> Stream (Of a) m r -> ByteString m r
+encodeByName = encodeByNameWith defaultEncodeOptions
+
+-- | Select the columns that you wish to encode from your data
+--   structure.
+--
+--   Header printing respects 'encIncludeheader'.
+encodeByNameWith :: (ToNamedRecord a, Monad m) => EncodeOptions -> Header
+                    -> Stream (Of a) m r -> ByteString m r
+encodeByNameWith opts hdr = B.fromChunks
+                            . S.concat
+                            . addHeaders
+                            . S.map enc
+  where
+    opts' = opts { encIncludeHeader = False }
+
+    addHeaders
+      | encIncludeHeader opts = S.cons . DBL.toChunks
+                                . CI.encodeWith opts' . CI.encodeRecord $ hdr
+      | otherwise             = id
+
+    enc = DBL.toChunks . C.encodeByNameWith opts' hdr . (:[])
