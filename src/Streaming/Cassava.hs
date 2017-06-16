@@ -13,14 +13,17 @@
  -}
 module Streaming.Cassava where
 
+import qualified Data.ByteString                    as DB
+import qualified Data.ByteString.Lazy               as DBL
 import           Data.ByteString.Streaming          (ByteString)
 import qualified Data.ByteString.Streaming          as B
 import qualified Data.ByteString.Streaming.Internal as B
 import           Streaming
 import qualified Streaming.Prelude                  as S
 
-import           Data.Csv             (DecodeOptions, FromRecord,
-                                       defaultDecodeOptions)
+import           Data.Csv             (DecodeOptions, EncodeOptions, FromRecord,
+                                       ToRecord, defaultDecodeOptions,
+                                       defaultEncodeOptions)
 import           Data.Csv.Incremental (HasHeader(..), Parser(..))
 import qualified Data.Csv.Incremental as CI
 
@@ -90,3 +93,27 @@ instance IsString CsvParseException where
 
 instance Exception CsvParseException where
   displayException (CsvParseException e) = "Error parsing csv: " ++ e
+
+--------------------------------------------------------------------------------
+
+-- | Encode a stream of values with the default options.
+--
+--   Optionally prefix the stream with headers.
+encode :: (ToRecord a, Monad m) => Maybe [DB.ByteString]
+          -> Stream (Of a) m r -> ByteString m r
+encode = encodeWith defaultEncodeOptions
+
+-- | Encode a stream of values with the provided options.
+--
+--   Optionally prefix the stream with headers.
+encodeWith :: (ToRecord a, Monad m) => EncodeOptions -> Maybe [DB.ByteString]
+              -> Stream (Of a) m r -> ByteString m r
+encodeWith opts mhdr = B.fromChunks
+                       . S.concat
+                       . addHeaders
+                       . S.map enc
+  where
+    addHeaders = maybe id (S.cons . enc) mhdr
+
+    enc :: (ToRecord v) => v -> [DB.ByteString]
+    enc = DBL.toChunks . CI.encodeWith opts . CI.encodeRecord
