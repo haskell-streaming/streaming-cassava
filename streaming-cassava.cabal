@@ -1,7 +1,13 @@
 name:                streaming-cassava
 version:             0.1.0.0
 synopsis:            Cassava support for the streaming library
-description:         Stream values to\/from CSV using Cassava.
+
+description:
+  Stream values to\/from CSV using Cassava.
+  .
+  Support is available for both named and \"plain\" data types,
+  optional header support and option handling.
+
 license:             MIT
 license-file:        LICENSE
 author:              Ivan Lazar Miljenovic
