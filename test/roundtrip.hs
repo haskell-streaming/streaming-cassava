@@ -15,16 +15,16 @@
  -}
 module Main (main) where
 
-import           Streaming
-import           Streaming.Cassava
-import qualified Streaming.Prelude as S
+import Streaming.Cassava
 
-import Test.Hspec
-import Test.Hspec.QuickCheck
-import Test.QuickCheck
+import Streaming.Prelude (Of, Stream, each, toList_)
+
+import Test.Hspec                (describe, hspec)
+import Test.Hspec.QuickCheck     (prop)
+import Test.QuickCheck           (Arbitrary(..))
 import Test.QuickCheck.Instances ()
 
-import           Control.Monad.Except
+import           Control.Monad.Except (MonadError, runExcept)
 import           Data.Text            (Text)
 import qualified Data.Vector          as V
 import           GHC.Generics         (Generic)
@@ -62,9 +62,9 @@ encodeDecodeWith :: (Eq a)
                     -> [a] -> Bool
 encodeDecodeWith f as = either (const False) (as==)
                         . runExcept
-                        . S.toList_
+                        . toList_
                         . f
-                        . S.each
+                        . each
                         $ as
 
 useType :: ([Test] -> r) -> [Test] -> r

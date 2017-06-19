@@ -32,11 +32,11 @@ test-suite roundtrip
   build-depends:       streaming-cassava
                      , base
                      , hspec == 2.4.*
-                     , mtl
-                     , QuickCheck
+                     , mtl >= 2.2.1 && < 2.3
+                     , QuickCheck == 2.*
                      , quickcheck-instances
                      , streaming
                      , text
-                     , vector
+                     , vector >= 0.3
   hs-source-dirs:      test
   default-language:    Haskell2010
