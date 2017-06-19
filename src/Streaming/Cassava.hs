@@ -46,7 +46,7 @@ import qualified Data.ByteString.Lazy               as DBL
 import           Data.ByteString.Streaming          (ByteString)
 import qualified Data.ByteString.Streaming          as B
 import qualified Data.ByteString.Streaming.Internal as B
-import           Streaming
+import           Streaming                          (Of, Stream)
 import qualified Streaming.Prelude                  as S
 
 import           Data.Csv             (DecodeOptions, DefaultOrdered(..),
@@ -120,18 +120,6 @@ runParser = loop
                                                 Right _ -> Left ("Unconsumed input", str)
 
     withEach = S.each . map (first CsvParseException)
-
-getValues :: (MonadError e m) => Stream (Of (Either e a)) m r -> Stream (Of a) m r
-getValues = S.mapM (either throwError return)
-
-newtype CsvParseException = CsvParseException String
-  deriving (Eq, Show, Typeable)
-
-instance IsString CsvParseException where
-  fromString = CsvParseException
-
-instance Exception CsvParseException where
-  displayException (CsvParseException e) = "Error parsing csv: " ++ e
 
 --------------------------------------------------------------------------------
 
@@ -243,3 +231,17 @@ encodeByNameWith opts hdr = B.fromChunks
       | otherwise             = id
 
     enc = DBL.toChunks . C.encodeByNameWith opts' hdr . (:[])
+
+--------------------------------------------------------------------------------
+
+getValues :: (MonadError e m) => Stream (Of (Either e a)) m r -> Stream (Of a) m r
+getValues = S.mapM (either throwError return)
+
+newtype CsvParseException = CsvParseException String
+  deriving (Eq, Show, Typeable)
+
+instance IsString CsvParseException where
+  fromString = CsvParseException
+
+instance Exception CsvParseException where
+  displayException (CsvParseException e) = "Error parsing csv: " ++ e
