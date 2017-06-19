@@ -1,6 +1,8 @@
 {-# LANGUAGE DeriveGeneric, FlexibleContexts, MultiParamTypeClasses, RankNTypes,
              ScopedTypeVariables #-}
 
+{-# OPTIONS_GHC -Wno-unused-binds #-}
+
 {- |
    Module      : Main
    Description : Round-trip property testing
