@@ -26,7 +26,7 @@ library
   hs-source-dirs:      src
   default-language:    Haskell2010
 
-test-suite conversions
+test-suite roundtrip
   type:                exitcode-stdio-1.0
   main-is:             roundtrip.hs
   build-depends:       streaming-cassava
@@ -34,6 +34,9 @@ test-suite conversions
                      , hspec == 2.4.*
                      , mtl
                      , QuickCheck
+                     , quickcheck-instances
                      , streaming
+                     , text
+                     , vector
   hs-source-dirs:      test
   default-language:    Haskell2010
