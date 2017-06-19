@@ -23,6 +23,7 @@ module Streaming.Cassava
   , decodeByNameWithErrors
     -- * Encoding
   , encode
+  , encodeDefault
   , encodeWith
     -- ** Named encoding
   , encodeByName
@@ -181,15 +182,23 @@ decodeByNameWithErrors = loopH . CI.decodeByNameWith
 
 -- | Encode a stream of values with the default options.
 --
---   Optionally prefix the stream with headers.
-encode :: (ToRecord a, Monad m) => Maybe [DB.ByteString]
+--   Optionally prefix the stream with headers (the 'header' function
+--   may be useful).
+encode :: (ToRecord a, Monad m) => Maybe Header
           -> Stream (Of a) m r -> ByteString m r
 encode = encodeWith defaultEncodeOptions
 
+-- | Encode a stream of values with the default options and a derived
+--   header prefixed.
+encodeDefault :: forall a m r. (ToRecord a, DefaultOrdered a, Monad m)
+                 => Stream (Of a) m r -> ByteString m r
+encodeDefault = encode (Just (headerOrder (undefined :: a)))
+
 -- | Encode a stream of values with the provided options.
 --
---   Optionally prefix the stream with headers.
-encodeWith :: (ToRecord a, Monad m) => EncodeOptions -> Maybe [DB.ByteString]
+--   Optionally prefix the stream with headers (the 'header' function
+--   may be useful).
+encodeWith :: (ToRecord a, Monad m) => EncodeOptions -> Maybe Header
               -> Stream (Of a) m r -> ByteString m r
 encodeWith opts mhdr = B.fromChunks
                        . S.concat
