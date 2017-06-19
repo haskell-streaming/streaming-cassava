@@ -1,7 +1,7 @@
 {-# LANGUAGE DeriveGeneric, FlexibleContexts, MultiParamTypeClasses, RankNTypes,
              ScopedTypeVariables #-}
 
-{-# OPTIONS_GHC -Wno-unused-top-binds #-}
+{-# OPTIONS_GHC -Wno-unused-binds #-}
 
 {- |
    Module      : Main
