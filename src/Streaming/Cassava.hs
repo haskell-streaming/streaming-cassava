@@ -53,8 +53,8 @@ import qualified Data.ByteString.Streaming.Internal as B
 import           Streaming                          (Of, Stream)
 import qualified Streaming.Prelude                  as S
 
-import           Data.Csv             (DecodeOptions, DefaultOrdered(..),
-                                       EncodeOptions, FromNamedRecord(..),
+import           Data.Csv             (DecodeOptions(..), DefaultOrdered(..),
+                                       EncodeOptions(..), FromNamedRecord(..),
                                        FromRecord(..), Header, Name,
                                        ToNamedRecord(..), ToRecord(..),
                                        defaultDecodeOptions,
