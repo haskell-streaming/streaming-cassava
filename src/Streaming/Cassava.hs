@@ -37,8 +37,12 @@ module Streaming.Cassava
   , DefaultOrdered (..)
   , HasHeader (..)
   , Header
-  , Name
   , header
+  , Name
+  , DecodeOptions(..)
+  , defaultDecodeOptions
+  , EncodeOptions(..)
+  , defaultEncodeOptions
   ) where
 
 import qualified Data.ByteString                    as DB
