@@ -60,7 +60,6 @@ import           Data.Csv             (DecodeOptions(..), DefaultOrdered(..),
                                        defaultDecodeOptions,
                                        defaultEncodeOptions, encIncludeHeader,
                                        header)
-import qualified Data.Csv             as C
 import           Data.Csv.Incremental (HasHeader(..), HeaderParser(..),
                                        Parser(..))
 import qualified Data.Csv.Incremental as CI
@@ -234,7 +233,7 @@ encodeByNameWith opts hdr = B.fromChunks
                                 . CI.encodeWith opts' . CI.encodeRecord $ hdr
       | otherwise             = id
 
-    enc = DBL.toChunks . C.encodeByNameWith opts' hdr . (:[])
+    enc = DBL.toChunks . CI.encodeByNameWith opts' hdr . CI.encodeNamedRecord
 
 --------------------------------------------------------------------------------
 

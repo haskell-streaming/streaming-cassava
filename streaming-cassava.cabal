@@ -27,7 +27,7 @@ library
   exposed-modules:     Streaming.Cassava
   build-depends:       base >=4.8 && <5
                      , bytestring
-                     , cassava >= 0.4 && < 0.6
+                     , cassava == 0.5.*
                      , mtl
                      , streaming >= 0.1.1.0 && < 0.2
                      , streaming-bytestring < 0.2
