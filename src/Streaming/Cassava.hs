@@ -97,6 +97,8 @@ decodeWith opts hdr bs = getValues (decodeWithErrors opts hdr bs)
 -- | Return back a stream with an attempt at type conversion, and
 --   either the previous result or any overall parsing errors with the
 --   remainder of the input.
+--
+--   'S.partitionEithers' may be useful when using this function.
 decodeWithErrors :: (Monad m, FromRecord a) => DecodeOptions -> HasHeader
                     -> ByteString m r
                     -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
@@ -155,6 +157,8 @@ decodeByNameWith opts bs = getValues (decodeByNameWithErrors opts bs)
 --
 --   This requires\/assumes a header in the CSV stream, which is
 --   discarded after parsing.
+--
+--   'S.partitionEithers' may be useful when using this function.
 decodeByNameWithErrors :: (Monad m, FromNamedRecord a) => DecodeOptions
                           -> ByteString m r
                           -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
