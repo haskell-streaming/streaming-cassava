@@ -28,7 +28,7 @@ library
                      , bytestring
                      , cassava == 0.5.*
                      , mtl
-                     , streaming >= 0.1.1.0 && < 0.2
+                     , streaming >= 0.1.1.0 && < 0.3
                      , streaming-bytestring < 0.2
                      , transformers
   hs-source-dirs:      src
