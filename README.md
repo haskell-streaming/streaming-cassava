@@ -1,7 +1,7 @@
 streaming-cassava
 =================
 
-[![Hackage](https://img.shields.io/hackage/v/streaming-cassava.svg)](https://hackage.haskell.org/package/streaming-cassava) [![Build Status](https://travis-ci.org/ivan-m/streaming-cassava.svg)](https://travis-ci.org/ivan-m/streaming-cassava)
+[![Hackage](https://img.shields.io/hackage/v/streaming-cassava.svg)](https://hackage.haskell.org/package/streaming-cassava) [![Build Status](https://travis-ci.org/haskell-streaming/streaming-cassava.svg)](https://travis-ci.org/haskell-streaming/streaming-cassava)
 
 > [cassava] support for the [streaming] ecosystem
 
