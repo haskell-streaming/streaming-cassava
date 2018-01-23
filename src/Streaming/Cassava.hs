@@ -8,7 +8,25 @@
    License     : MIT
    Maintainer  : Ivan.Miljenovic@gmail.com
 
+   Stream CSV data in\/out using
+   [Cassava](http://hackage.haskell.org/package/cassava).
 
+   A common use-case is to stream CSV-encoded data in from a file.
+   You may be tempted to use 'B.readFile' from
+   "Data.ByteString.Streaming" to obtain the file contents, but if you
+   do you're likely to run into exceptions such as:
+
+   > hGetBufSome: illegal operation (handle is closed)
+
+   One solution is to use the
+   [streaming-with](https://hackage.haskell.org/package/streaming-with)
+   package for the IO aspects.  You can then write something like:
+
+   @
+     withBinaryFileContents \"myFile.csv\" $
+       doSomethingWithStreamingCSV
+       . 'decodeByName'
+   @
 
  -}
 module Streaming.Cassava
