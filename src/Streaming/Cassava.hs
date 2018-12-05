@@ -126,9 +126,12 @@ runParser :: (Monad m) => Parser a -> ByteString m r
              -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
 runParser = loop
   where
-    feed f str = (uncurry (loop . f) . fromMaybe (mempty, str))
-                          -- nxt == Nothing, str is just Return
-                 =<< lift (B.unconsChunk str)
+    feed f str = do
+      nxt <- lift (B.nextChunk str)
+      let g = loop . f
+      case nxt of
+        Left r -> pure $ Right r
+        Right (chunk, rest) -> g chunk rest
 
     loop p str = case p of
                    Fail bs err -> return (Left (CsvParseException err, B.consChunk bs str))
@@ -187,9 +190,15 @@ decodeByNameWithErrors = loopH . CI.decodeByNameWith
                      PartialH get -> feedH get str
                      DoneH _  p   -> runParser p str
 
-    feedH f str = (uncurry (loopH . f) . fromMaybe (mempty, str))
-                           -- nxt == Nothing, str is just Return
-                  =<< lift (B.unconsChunk str)
+    -- feedH f str = (uncurry (loopH . f) . fromMaybe (mempty, str))
+    --                        -- nxt == Nothing, str is just Return
+    --               =<< lift (B.unconsChunk str)
+    feedH f str = do
+      nxt <- lift (B.nextChunk str)
+      let g = loopH . f
+      case nxt of
+        Left r -> pure $ Right r
+        Right (chunk, rest) -> g chunk rest
 
 --------------------------------------------------------------------------------
 
