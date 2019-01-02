@@ -130,7 +130,7 @@ runParser = loop
       nxt <- lift (B.nextChunk str)
       let g = loop . f
       case nxt of
-        Left r -> pure $ Right r
+        Left r              -> pure $ Right r
         Right (chunk, rest) -> g chunk rest
 
     loop p str = case p of
@@ -190,14 +190,11 @@ decodeByNameWithErrors = loopH . CI.decodeByNameWith
                      PartialH get -> feedH get str
                      DoneH _  p   -> runParser p str
 
-    -- feedH f str = (uncurry (loopH . f) . fromMaybe (mempty, str))
-    --                        -- nxt == Nothing, str is just Return
-    --               =<< lift (B.unconsChunk str)
     feedH f str = do
       nxt <- lift (B.nextChunk str)
       let g = loopH . f
       case nxt of
-        Left r -> pure $ Right r
+        Left r              -> pure $ Right r
         Right (chunk, rest) -> g chunk rest
 
 --------------------------------------------------------------------------------
