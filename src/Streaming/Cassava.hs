@@ -1,5 +1,7 @@
-{-# LANGUAGE FlexibleContexts, MultiParamTypeClasses, OverloadedStrings,
-             ScopedTypeVariables #-}
+{-# LANGUAGE FlexibleContexts      #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE OverloadedStrings     #-}
+{-# LANGUAGE ScopedTypeVariables   #-}
 
 {- |
    Module      : Streaming.Cassava
@@ -71,24 +73,27 @@ import qualified Data.ByteString.Streaming.Internal as B
 import           Streaming                          (Of, Stream)
 import qualified Streaming.Prelude                  as S
 
-import           Data.Csv             (DecodeOptions(..), DefaultOrdered(..),
-                                       EncodeOptions(..), FromNamedRecord(..),
-                                       FromRecord(..), Header, Name,
-                                       ToNamedRecord(..), ToRecord(..),
-                                       defaultDecodeOptions,
-                                       defaultEncodeOptions, encIncludeHeader,
-                                       header)
-import           Data.Csv.Incremental (HasHeader(..), HeaderParser(..),
-                                       Parser(..))
-import qualified Data.Csv.Incremental as CI
+import           Data.Csv                           (DecodeOptions (..),
+                                                     DefaultOrdered (..),
+                                                     EncodeOptions (..),
+                                                     FromNamedRecord (..),
+                                                     FromRecord (..), Header,
+                                                     Name, ToNamedRecord (..),
+                                                     ToRecord (..),
+                                                     defaultDecodeOptions,
+                                                     defaultEncodeOptions,
+                                                     encIncludeHeader, header)
+import           Data.Csv.Incremental               (HasHeader (..),
+                                                     HeaderParser (..),
+                                                     Parser (..))
+import qualified Data.Csv.Incremental               as CI
 
-import Control.Exception         (Exception(..))
-import Control.Monad.Error.Class (MonadError, throwError)
-import Control.Monad.Trans.Class (lift)
-import Data.Bifunctor            (first)
-import Data.Maybe                (fromMaybe)
-import Data.String               (IsString(..))
-import Data.Typeable             (Typeable)
+import           Control.Exception                  (Exception (..))
+import           Control.Monad.Error.Class          (MonadError, throwError)
+import           Control.Monad.Trans.Class          (lift)
+import           Data.Bifunctor                     (first)
+import           Data.String                        (IsString (..))
+import           Data.Typeable                      (Typeable)
 
 --------------------------------------------------------------------------------
 
