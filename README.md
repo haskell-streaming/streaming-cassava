@@ -18,15 +18,13 @@ automatically add on default headers and you can even choose whether
 to fail on the first parse error or handle errors on a row-by-row
 basis.
 
-Errors with `readFile`
+Reading data from file
 ----------------------
 
 A common use-case is to stream CSV-encoded data in from a file.  You
 may be tempted to use `readFile` from [streaming-bytestring] to obtain
-the file contents, but if you do you're likely to run into exceptions
-such as `hGetBufSome: illegal operation (handle is closed)`.
-
-The recommended solution is to use the [streaming-with] package for
+the file contents, and for simple cases this should suffice.  However,
+the recommended solution is to use the [streaming-with] package for
 the IO aspects.  You can then write something like:
 
 ```haskell
