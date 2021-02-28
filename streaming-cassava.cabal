@@ -16,7 +16,9 @@ category:            Data, Streaming
 build-type:          Simple
 extra-source-files:  ChangeLog.md, README.md
 cabal-version:       >=1.10
-tested-with:         GHC == 8.0.2, GHC == 8.1.*
+
+tested-with: GHC == 8.0.2, GHC == 8.2.2, GHC == 8.4.4, GHC == 8.6.5,
+             GHC == 8.8.4, GHC == 8.10.4
 
 source-repository head
   type:     git
@@ -41,7 +43,7 @@ test-suite roundtrip
   main-is:             roundtrip.hs
   build-depends:       streaming-cassava
                      , base
-                     , hspec == 2.4.*
+                     , hspec >= 2.4 && < 2.8
                      , mtl >= 2.2.1 && < 2.3
                      , QuickCheck == 2.*
                      , quickcheck-instances
