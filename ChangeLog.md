@@ -1,5 +1,9 @@
 # Revision history for streaming-cassava
 
+## 0.2.0.0 -- 2021-02-28
+
+* Support `streaming-bytestring-0.2.*`
+
 ## 0.1.0.2 -- 2021-02-28
 
 * Fix issues with `readFile`.

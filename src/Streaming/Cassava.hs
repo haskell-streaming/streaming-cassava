@@ -65,41 +65,40 @@ module Streaming.Cassava
   , defaultEncodeOptions
   ) where
 
-import qualified Data.ByteString                    as DB
-import qualified Data.ByteString.Lazy               as DBL
-import           Data.ByteString.Streaming          (ByteString)
-import qualified Data.ByteString.Streaming          as B
-import qualified Data.ByteString.Streaming.Internal as B
-import           Streaming                          (Of, Stream)
-import qualified Streaming.Prelude                  as S
+import qualified Data.ByteString               as DB
+import qualified Data.ByteString.Lazy          as DBL
+import           Streaming                     (Of, Stream)
+import           Streaming.ByteString          (ByteStream)
+import qualified Streaming.ByteString          as B
+import qualified Streaming.ByteString.Internal as B
+import qualified Streaming.Prelude             as S
 
-import           Data.Csv                           (DecodeOptions (..),
-                                                     DefaultOrdered (..),
-                                                     EncodeOptions (..),
-                                                     FromNamedRecord (..),
-                                                     FromRecord (..), Header,
-                                                     Name, ToNamedRecord (..),
-                                                     ToRecord (..),
-                                                     defaultDecodeOptions,
-                                                     defaultEncodeOptions,
-                                                     encIncludeHeader, header)
-import           Data.Csv.Incremental               (HasHeader (..),
-                                                     HeaderParser (..),
-                                                     Parser (..))
-import qualified Data.Csv.Incremental               as CI
+import           Data.Csv                      (DecodeOptions (..),
+                                                DefaultOrdered (..),
+                                                EncodeOptions (..),
+                                                FromNamedRecord (..),
+                                                FromRecord (..), Header, Name,
+                                                ToNamedRecord (..),
+                                                ToRecord (..),
+                                                defaultDecodeOptions,
+                                                defaultEncodeOptions,
+                                                encIncludeHeader, header)
+import           Data.Csv.Incremental          (HasHeader (..),
+                                                HeaderParser (..), Parser (..))
+import qualified Data.Csv.Incremental          as CI
 
-import           Control.Exception                  (Exception (..))
-import           Control.Monad.Error.Class          (MonadError, throwError)
-import           Control.Monad.Trans.Class          (lift)
-import           Data.Bifunctor                     (first)
-import           Data.String                        (IsString (..))
-import           Data.Typeable                      (Typeable)
+import           Control.Exception             (Exception (..))
+import           Control.Monad.Error.Class     (MonadError, throwError)
+import           Control.Monad.Trans.Class     (lift)
+import           Data.Bifunctor                (first)
+import           Data.String                   (IsString (..))
+import           Data.Typeable                 (Typeable)
 
 --------------------------------------------------------------------------------
 
 -- | Use 'defaultOptions' for decoding the provided CSV.
 decode :: (MonadError CsvParseException m, FromRecord a)
-          => HasHeader -> ByteString m r
+          => HasHeader -> ByteStream m r
           -> Stream (Of a) m r
 decode = decodeWith defaultDecodeOptions
 
@@ -113,7 +112,7 @@ decode = decodeWith defaultDecodeOptions
 --   Unlike 'decodeWithErrors', any remaining input is discarded.
 decodeWith :: (MonadError CsvParseException m, FromRecord a)
               => DecodeOptions -> HasHeader
-              -> ByteString m r -> Stream (Of a) m r
+              -> ByteStream m r -> Stream (Of a) m r
 decodeWith opts hdr bs = getValues (decodeWithErrors opts hdr bs)
                          >>= either (throwError . fst) return
 
@@ -123,32 +122,33 @@ decodeWith opts hdr bs = getValues (decodeWithErrors opts hdr bs)
 --
 --   'S.partitionEithers' may be useful when using this function.
 decodeWithErrors :: (Monad m, FromRecord a) => DecodeOptions -> HasHeader
-                    -> ByteString m r
-                    -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
+                    -> ByteStream m r
+                    -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteStream m r) r)
 decodeWithErrors opts = runParser . CI.decodeWith opts
 
-runParser :: (Monad m) => Parser a -> ByteString m r
-             -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
+runParser :: (Monad m) => Parser a -> ByteStream m r
+             -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteStream m r) r)
 runParser = loop
   where
     feed f str = do
-      nxt <- lift (B.nextChunk str)
+      nxt <- lift (B.unconsChunk str)
       let g = loop . f
       case nxt of
         Left r              -> pure $ Right r
         Right (chunk, rest) -> g chunk rest
 
     loop p str = case p of
-                   Fail bs err -> return (Left (CsvParseException err, B.consChunk bs str))
-                   Many es get -> withEach es >> feed get str
-                   Done es     -> do withEach es
-                                     -- This is primarily just to
-                                     -- return the @r@ value, but also
-                                     -- acts as a check on the parser.
-                                     nxt <- lift (B.nextChunk str)
-                                     return $ case nxt of
-                                                Left r  -> Right r
-                                                Right _ -> Left ("Unconsumed input", str)
+      Fail bs err -> return (Left (CsvParseException err, B.consChunk bs str))
+      Many es get -> withEach es >> feed get str
+      Done es     -> do
+        withEach es
+        -- This is primarily just to
+        -- return the @r@ value, but also
+        -- acts as a check on the parser.
+        nxt <- lift (B.unconsChunk str)
+        return $ case nxt of
+          Left r  -> Right r
+          Right _ -> Left ("Unconsumed input", str)
 
     withEach = S.each . map (first CsvParseException)
 
@@ -156,7 +156,7 @@ runParser = loop
 
 -- | Use 'defaultOptions' for decoding the provided CSV.
 decodeByName :: (MonadError CsvParseException m, FromNamedRecord a)
-                => ByteString m r -> Stream (Of a) m r
+                => ByteStream m r -> Stream (Of a) m r
 decodeByName = decodeByNameWith defaultDecodeOptions
 
 -- | Return back a stream of values from the provided CSV, stopping at
@@ -173,7 +173,7 @@ decodeByName = decodeByNameWith defaultDecodeOptions
 --   discarded.
 decodeByNameWith :: (MonadError CsvParseException m, FromNamedRecord a)
                     => DecodeOptions
-                    -> ByteString m r -> Stream (Of a) m r
+                    -> ByteStream m r -> Stream (Of a) m r
 decodeByNameWith opts bs = getValues (decodeByNameWithErrors opts bs)
                            >>= either (throwError . fst) return
 
@@ -186,8 +186,8 @@ decodeByNameWith opts bs = getValues (decodeByNameWithErrors opts bs)
 --
 --   'S.partitionEithers' may be useful when using this function.
 decodeByNameWithErrors :: (Monad m, FromNamedRecord a) => DecodeOptions
-                          -> ByteString m r
-                          -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteString m r) r)
+                          -> ByteStream m r
+                          -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteStream m r) r)
 decodeByNameWithErrors = loopH . CI.decodeByNameWith
   where
     loopH ph str = case ph of
@@ -196,7 +196,7 @@ decodeByNameWithErrors = loopH . CI.decodeByNameWith
                      DoneH _  p   -> runParser p str
 
     feedH f str = do
-      nxt <- lift (B.nextChunk str)
+      nxt <- lift (B.unconsChunk str)
       let g = loopH . f
       case nxt of
         Left r              -> pure $ Right r
@@ -209,13 +209,13 @@ decodeByNameWithErrors = loopH . CI.decodeByNameWith
 --   Optionally prefix the stream with headers (the 'header' function
 --   may be useful).
 encode :: (ToRecord a, Monad m) => Maybe Header
-          -> Stream (Of a) m r -> ByteString m r
+          -> Stream (Of a) m r -> ByteStream m r
 encode = encodeWith defaultEncodeOptions
 
 -- | Encode a stream of values with the default options and a derived
 --   header prefixed.
 encodeDefault :: forall a m r. (ToRecord a, DefaultOrdered a, Monad m)
-                 => Stream (Of a) m r -> ByteString m r
+                 => Stream (Of a) m r -> ByteStream m r
 encodeDefault = encode (Just (headerOrder (undefined :: a)))
 
 -- | Encode a stream of values with the provided options.
@@ -223,7 +223,7 @@ encodeDefault = encode (Just (headerOrder (undefined :: a)))
 --   Optionally prefix the stream with headers (the 'header' function
 --   may be useful).
 encodeWith :: (ToRecord a, Monad m) => EncodeOptions -> Maybe Header
-              -> Stream (Of a) m r -> ByteString m r
+              -> Stream (Of a) m r -> ByteStream m r
 encodeWith opts mhdr = B.fromChunks
                        . S.concat
                        . addHeaders
@@ -238,14 +238,14 @@ encodeWith opts mhdr = B.fromChunks
 
 -- | Use the default ordering to encode all fields\/columns.
 encodeByNameDefault :: forall a m r. (DefaultOrdered a, ToNamedRecord a, Monad m)
-                       => Stream (Of a) m r -> ByteString m r
+                       => Stream (Of a) m r -> ByteStream m r
 encodeByNameDefault = encodeByName (headerOrder (undefined :: a))
 
 -- | Select the columns that you wish to encode from your data
 --   structure using default options (which currently includes
 --   printing the header).
 encodeByName :: (ToNamedRecord a, Monad m) => Header
-                -> Stream (Of a) m r -> ByteString m r
+                -> Stream (Of a) m r -> ByteStream m r
 encodeByName = encodeByNameWith defaultEncodeOptions
 
 -- | Select the columns that you wish to encode from your data
@@ -253,7 +253,7 @@ encodeByName = encodeByNameWith defaultEncodeOptions
 --
 --   Header printing respects 'encIncludeheader'.
 encodeByNameWith :: (ToNamedRecord a, Monad m) => EncodeOptions -> Header
-                    -> Stream (Of a) m r -> ByteString m r
+                    -> Stream (Of a) m r -> ByteStream m r
 encodeByNameWith opts hdr = B.fromChunks
                             . S.concat
                             . addHeaders
