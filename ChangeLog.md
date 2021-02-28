@@ -1,5 +1,9 @@
 # Revision history for streaming-cassava
 
+## 0.1.0.2 -- 2021-02-28
+
+* Fix issues with `readFile`.
+
 ## 0.1.0.1 -- 2018-01-23
 
 * Bump dependency on `streaming`.
