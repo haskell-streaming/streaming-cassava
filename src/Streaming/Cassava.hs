@@ -14,15 +14,12 @@
    [Cassava](http://hackage.haskell.org/package/cassava).
 
    A common use-case is to stream CSV-encoded data in from a file.
-   You may be tempted to use 'B.readFile' from
-   "Data.ByteString.Streaming" to obtain the file contents, but if you
-   do you're likely to run into exceptions such as:
+   One can either use 'B.readFile' from "Streaming.ByteString",
+   which will handle closing the file when it's completely read
+   or when the outer ResourceT is finalised.
 
-   > hGetBufSome: illegal operation (handle is closed)
-
-   One solution is to use the
-   [streaming-with](https://hackage.haskell.org/package/streaming-with)
-   package for the IO aspects.  You can then write something like:
+   Another method is using a bracket pattern and
+   'withBinaryFileContents'.
 
    @
      withBinaryFileContents \"myFile.csv\" $
@@ -132,10 +129,10 @@ runParser = loop
   where
     feed f str = do
       nxt <- lift (B.unconsChunk str)
-      let g = loop . f
+      let step = loop . f
       case nxt of
-        Left r              -> pure $ Right r
-        Right (chunk, rest) -> g chunk rest
+        Left r              -> step "" $ pure r
+        Right (chunk, rest) -> step chunk rest
 
     loop p str = case p of
       Fail bs err -> return (Left (CsvParseException err, B.consChunk bs str))
@@ -190,17 +187,19 @@ decodeByNameWithErrors :: (Monad m, FromNamedRecord a) => DecodeOptions
                           -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteStream m r) r)
 decodeByNameWithErrors = loopH . CI.decodeByNameWith
   where
-    loopH ph str = case ph of
-                     FailH bs err -> return (Left (CsvParseException err, B.consChunk bs str))
-                     PartialH get -> feedH get str
-                     DoneH _  p   -> runParser p str
-
     feedH f str = do
       nxt <- lift (B.unconsChunk str)
-      let g = loopH . f
+      let step = loopH . f
       case nxt of
-        Left r              -> pure $ Right r
-        Right (chunk, rest) -> g chunk rest
+        Left r              -> step "" $ pure r
+        Right (chunk, rest) -> step chunk rest
+
+    loopH ph str =
+      case ph of
+        FailH bs err -> return (Left (CsvParseException err, B.consChunk bs str))
+        PartialH get -> feedH get str
+        DoneH _  p   -> runParser p str
+
 
 --------------------------------------------------------------------------------
 
