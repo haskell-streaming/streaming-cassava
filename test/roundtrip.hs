@@ -1,5 +1,5 @@
 {-# LANGUAGE DeriveGeneric, FlexibleContexts, MultiParamTypeClasses, RankNTypes,
-             ScopedTypeVariables #-}
+             ScopedTypeVariables, OverloadedStrings #-}
 
 {-# OPTIONS_GHC -Wno-unused-binds #-}
 
@@ -19,12 +19,12 @@ import Streaming.Cassava
 
 import Streaming.Prelude (Of, Stream, each, toList_)
 
-import Test.Hspec                (describe, hspec)
+import Test.Hspec                (describe, hspec, it)
 import Test.Hspec.QuickCheck     (prop)
 import Test.QuickCheck           (Arbitrary(..))
 import Test.QuickCheck.Instances ()
 
-import           Control.Monad.Except (MonadError, runExcept)
+import           Control.Monad.Except (MonadError, runExcept, Except)
 import           Data.Text            (Text)
 import qualified Data.Vector          as V
 import           GHC.Generics         (Generic)
@@ -36,9 +36,18 @@ main = hspec $ do
   describe "Plain records" $ do
     prop "Just data" (useType encodeDecode)
     prop "With headers" (useType encodeDecodeHeader)
+    it "Parsed non terminated final" $ do
+      consume (== [Test 3 "four" (Just 6.0)])
+        $ decode NoHeader "3,four,6.0"
+
   describe "Named records" $ do
     prop "Default order" (useType encodeDecodeNamed)
     prop "Reversed order" (useType encodeDecodeNamedReordered)
+
+    it "Parsed non terminated final" $ do
+      consume (== [Test 3 "four" Nothing])
+        $ decode HasHeader "columnA,longer_column_name,mebbe\n3,four,"
+
 
 encodeDecode :: (FromRecord a, ToRecord a, Eq a) => [a] -> Bool
 encodeDecode = encodeDecodeWith (decode NoHeader . encode Nothing)
@@ -57,15 +66,13 @@ encodeDecodeNamedReordered = encodeDecodeWith (decodeByName . encodeByName hdr)
   where
     hdr = V.reverse (headerOrder (undefined :: a))
 
+consume :: ([a] -> Bool) -> Stream (Of a) (Except b) r -> Bool
+consume prop_ = either (const False) prop_ . runExcept . toList_
+
 encodeDecodeWith :: (Eq a)
-                    => (forall m r. (MonadError CsvParseException m) => Stream (Of a) m r -> Stream (Of a) m r)
-                    -> [a] -> Bool
-encodeDecodeWith f as = either (const False) (as==)
-                        . runExcept
-                        . toList_
-                        . f
-                        . each
-                        $ as
+                 => (forall m r. (MonadError CsvParseException m) => Stream (Of a) m r -> Stream (Of a) m r)
+                 -> [a] -> Bool
+encodeDecodeWith f as = consume (as==) . f . each $ as
 
 useType :: ([Test] -> r) -> [Test] -> r
 useType = id
