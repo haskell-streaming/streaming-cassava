@@ -38,6 +38,8 @@ module Streaming.Cassava
   , decodeByName
   , decodeByNameWith
   , decodeByNameWithErrors
+  , decodeByNameWithP
+  , decodeByNameWithErrorsP
     -- * Encoding
   , encode
   , encodeDefault
@@ -60,10 +62,14 @@ module Streaming.Cassava
   , defaultDecodeOptions
   , EncodeOptions(..)
   , defaultEncodeOptions
+  , decodeWithErrorsP
+  , decodeWithP
+  , decodeP
   ) where
 
 import qualified Data.ByteString               as DB
 import qualified Data.ByteString.Lazy          as DBL
+import qualified Data.Csv                      as CSV
 import           Streaming                     (Of, Stream)
 import           Streaming.ByteString          (ByteStream)
 import qualified Streaming.ByteString          as B
@@ -79,7 +85,7 @@ import           Data.Csv                      (DecodeOptions (..),
                                                 ToRecord (..),
                                                 defaultDecodeOptions,
                                                 defaultEncodeOptions,
-                                                encIncludeHeader, header)
+                                                encIncludeHeader, header, NamedRecord)
 import           Data.Csv.Incremental          (HasHeader (..),
                                                 HeaderParser (..), Parser (..))
 import qualified Data.Csv.Incremental          as CI
@@ -97,7 +103,16 @@ import           Data.Typeable                 (Typeable)
 decode :: (MonadError CsvParseException m, FromRecord a)
           => HasHeader -> ByteStream m r
           -> Stream (Of a) m r
-decode = decodeWith defaultDecodeOptions
+decode = decodeP CSV.parseRecord
+
+-- | Like 'decode', but allows you to specify your own parser.
+decodeP
+    :: (MonadError CsvParseException m)
+    => (CSV.Record -> CSV.Parser a)
+    -> HasHeader
+    -> ByteStream m r
+    -> Stream (Of a) m r
+decodeP w = decodeWithP w defaultDecodeOptions
 
 -- | Return back a stream of values from the provided CSV, stopping at
 --   the first error.
@@ -110,9 +125,20 @@ decode = decodeWith defaultDecodeOptions
 decodeWith :: (MonadError CsvParseException m, FromRecord a)
               => DecodeOptions -> HasHeader
               -> ByteStream m r -> Stream (Of a) m r
-decodeWith opts hdr bs = getValues (decodeWithErrors opts hdr bs)
-                         >>= either (throwError . fst) return
+decodeWith = decodeWithP CSV.parseRecord
 
+-- | Like 'decodeWith', but allows you to specify your own parser.
+decodeWithP
+    :: (MonadError CsvParseException m)
+    => (CSV.Record -> CSV.Parser a)
+    -> DecodeOptions
+    -> HasHeader
+    -> ByteStream m r
+    -> Stream (Of a) m r
+decodeWithP w opts hdr bs =
+    getValues (decodeWithErrorsP w opts hdr bs)
+        >>= either (throwError . fst) return
+                         
 -- | Return back a stream with an attempt at type conversion, and
 --   either the previous result or any overall parsing errors with the
 --   remainder of the input.
@@ -121,7 +147,21 @@ decodeWith opts hdr bs = getValues (decodeWithErrors opts hdr bs)
 decodeWithErrors :: (Monad m, FromRecord a) => DecodeOptions -> HasHeader
                     -> ByteStream m r
                     -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteStream m r) r)
-decodeWithErrors opts = runParser . CI.decodeWith opts
+decodeWithErrors  = decodeWithErrorsP CSV.parseRecord
+
+-- | Like 'decodeWithErrors', but allows you to specify your own
+--   parser.
+decodeWithErrorsP
+    :: Monad m
+    => (CSV.Record -> CSV.Parser a)
+    -> DecodeOptions
+    -> HasHeader
+    -> ByteStream m r
+    -> Stream
+        (Of (Either CsvParseException a))
+        m
+        (Either (CsvParseException, ByteStream m r) r)
+decodeWithErrorsP w opts = runParser . CI.decodeWithP w opts
 
 runParser :: (Monad m) => Parser a -> ByteStream m r
              -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteStream m r) r)
@@ -174,6 +214,15 @@ decodeByNameWith :: (MonadError CsvParseException m, FromNamedRecord a)
 decodeByNameWith opts bs = getValues (decodeByNameWithErrors opts bs)
                            >>= either (throwError . fst) return
 
+-- | Like 'decodeByNameWith', but allows you to specify your own
+--   parser.
+decodeByNameWithP ::  (MonadError CsvParseException m)
+                      => (NamedRecord -> CSV.Parser a)
+                      -> DecodeOptions
+                      -> ByteStream m r
+                      -> Stream (Of a) m r
+decodeByNameWithP w opts bs = getValues (decodeByNameWithErrorsP w opts bs)
+                           >>= either (throwError . fst) return
 -- | Return back a stream with an attempt at type conversion, but
 --   where the order of columns doesn't have to match the order of
 --   fields of your actual type.
@@ -182,10 +231,20 @@ decodeByNameWith opts bs = getValues (decodeByNameWithErrors opts bs)
 --   discarded after parsing.
 --
 --   'S.partitionEithers' may be useful when using this function.
-decodeByNameWithErrors :: (Monad m, FromNamedRecord a) => DecodeOptions
+decodeByNameWithErrors :: (Monad m, FromNamedRecord a)
+                          => DecodeOptions
                           -> ByteStream m r
                           -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteStream m r) r)
-decodeByNameWithErrors = loopH . CI.decodeByNameWith
+decodeByNameWithErrors = decodeByNameWithErrorsP CSV.parseNamedRecord
+
+-- | Like 'decodeByNameWithErrors', but allows you to specify your own
+--   parser.
+decodeByNameWithErrorsP :: (Monad m) 
+                          => (NamedRecord -> CSV.Parser a) 
+                          -> DecodeOptions
+                          -> ByteStream m r
+                          -> Stream (Of (Either CsvParseException a)) m (Either (CsvParseException, ByteStream m r) r)
+decodeByNameWithErrorsP w = loopH . CI.decodeByNameWithP w
   where
     feedH f str = do
       nxt <- lift (B.unconsChunk str)
